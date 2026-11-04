@@ -72,7 +72,7 @@ wider deny. That is what SHADOWED_RULE reports.
 ## Quick start
 
 ```bash
-pipx install permission-audit              # or: pip install permission-audit
+pipx install git+https://github.com/jasveerai88/permission-audit              # or: pip install git+https://github.com/jasveerai88/permission-audit
 permission-audit audit ~/.claude/settings.json
 ```
 
