@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.0.0 — 2026-11-04
+
+The checks are unchanged from v0.1.0 — this release is
+about being installable and readable as a product:
+
+- **Packaged install.** `pyproject.toml` (setuptools,
+  single-module layout) — `pip install permission-audit` /
+  `pipx install permission-audit` now put a
+  `permission-audit` console command on PATH.
+  `python3 src/permission_audit.py` from a checkout
+  keeps working, unchanged.
+- **README rebuilt as a landing page:** one-line hook,
+  badge row, an animated demo (a dangerous shared
+  settings file fails with six errors; a clean file
+  passes), a 20-second quickstart, a what-it-catches
+  table with the fixture examples, and a comparison
+  table against reading the JSON yourself and against
+  syntax-only linters. The full reference — rule table
+  and verbatim fixture reports — moved below the fold.
+- **Demo + social assets** in `docs/`: `demo.gif`
+  (rendered from real v1.0.0 output) and
+  `social-preview.png` (1280×640).
+- **Community files:** SECURITY.md and issue templates
+  added; CONTRIBUTING and FUNDING unchanged.
+- Version string is now 1.0.0 everywhere (tool header,
+  `--json` output, package metadata). All 68 tests pass
+  unmodified.
+
 ## v0.1.0 — 2026-11-04
 
 First release. Audits one Claude Code settings file — or

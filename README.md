@@ -1,10 +1,16 @@
-# permission-audit — Permission Allowlist Auditor
+<h1 align="center">permission-audit</h1>
 
-Audits Claude Code `settings.json` permission chains —
-the allow / ask / deny lists that decide what runs
-without asking you — and reports the grants that are
-broader than their text, the rules that can never take
-effect, and the dangerous modes hiding in shared files.
+<p align="center"><strong>Your Claude Code allowlist is wider than you think — audit it before it hurts you.</strong></p>
+
+<p align="center">
+  <img alt="tests: 68 passing" src="https://img.shields.io/badge/tests-68%20passing-brightgreen">
+  <img alt="python 3.10 | 3.11 | 3.12" src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue">
+  <img alt="version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-orange">
+  <img alt="dependencies: none" src="https://img.shields.io/badge/dependencies-0-brightgreen">
+  <img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-blue">
+</p>
+
+<p align="center"><img alt="permission-audit demo: a dangerous settings file fails with six errors, a clean file passes" src="docs/demo.gif" width="880"></p>
 
 A permission allowlist only grows. You approve a command
 once and the grant lives forever: `Bash(*)` approved for
@@ -13,8 +19,21 @@ a wider deny nobody remembers writing, and — worst of
 all — `bypassPermissions` committed to a shared repo's
 `.claude/settings.json`, where every teammate inherits
 it. Nobody reads the chain until something runs that
-shouldn't have. permission-audit reads it for you:
-every rule inventoried, the documented evaluation order
+shouldn't have.
+
+The human backstop is weaker than it feels. Anthropic
+reports that Claude Code users approve 97% of permission
+prompts, and in its controlled study with 1,053 paid
+testers, human reviewers caught only 13.6% of dangerous
+commands planted in their sessions (Anthropic, *Auto
+mode is now the default in Claude Code*, Aug 2026 —
+checked 2026-11-04). If the prompts are a rubber stamp,
+the written rules are the real security boundary — and
+they accrete unaudited across the settings chain: user
+settings, the shared project file committed to the repo,
+and the local file approvals are saved into.
+permission-audit reads the whole chain for you: every
+rule inventoried, the documented evaluation order
 applied, each finding labelled with the rule, the file,
 and what is actually true about it.
 
@@ -27,19 +46,21 @@ byte-identical.
 
 **The semantics are documented, not guessed.** The
 shipped checks rest on the official Claude Code
-permissions and settings documentation (checked
-2026-11-04): rules are evaluated **deny first, then
-ask, then allow** — specificity does not change the
-order, a matching ask prompts even when a more specific
-allow exists, and an allow cannot carve an exception
-out of a deny. Permission lists **merge** across files
-rather than overriding. File precedence, highest first:
-**managed > project local (`.claude/settings.local.json`)
-> shared project (`.claude/settings.json`) > user
-(`~/.claude/settings.json`)**. Where a check goes beyond
-the documented semantics — pattern coverage — the model
-is stated in SKILL.md and the finding says "Heuristic"
-in its own text.
+permissions and settings documentation
+(code.claude.com/docs/en/permissions and /en/settings,
+checked 2026-11-04): rules are evaluated **deny first,
+then ask, then allow** — specificity does not change
+the order, a matching ask prompts even when a more
+specific allow exists, and an allow cannot carve an
+exception out of a deny. Permission lists **merge**
+across files rather than overriding. File precedence,
+highest first: **managed > project local
+(`.claude/settings.local.json`) > shared project
+(`.claude/settings.json`) > user
+(`~/.claude/settings.json`)**. Where a check goes
+beyond the documented semantics — pattern coverage —
+the model is stated in SKILL.md and the finding says
+"Heuristic" in its own text.
 
 One consequence of the documented order is worth
 stating plainly, because intuition gets it backwards:
@@ -51,19 +72,84 @@ wider deny. That is what SHADOWED_RULE reports.
 ## Quick start
 
 ```bash
-python3 src/permission_audit.py audit ~/.claude/settings.json
-python3 src/permission_audit.py audit .claude/settings.json .claude/settings.local.json ~/.claude/settings.json --home ~
-python3 src/permission_audit.py audit .claude/ --json
+pipx install permission-audit              # or: pip install permission-audit
+permission-audit audit ~/.claude/settings.json
 ```
 
-No dependencies — Python 3.10+ standard library only.
-Pass one settings file, several (a chain — order does
-not matter, precedence sorts them), or a folder (a
+That's the whole workflow: one command, one report, an
+exit code you can gate on — **1** = at least one ERROR
+finding, **0** = no errors, **2** = input error. Pass
+one settings file, several (a chain — argument order
+does not matter, precedence sorts them), or a folder (a
 `.claude/` folder's settings files, or loose
 `settings.json` / `settings.local.json` /
-`managed-settings.json` files inside it).
+`managed-settings.json` files inside it). Add `--json`
+for a machine-readable report. From a source checkout,
+`python3 src/permission_audit.py audit <file>` does the
+same thing. Python 3.10+, standard library only, no
+dependencies.
 
-## What it checks
+## What it catches
+
+Every example below is a real line from the shipped
+fixture `examples/dangerous/.claude/settings.json` —
+the full report is [below](#a-real-run--a-bloated-shared-settings-file).
+
+| Catch | What has to be true | Real example (from `examples/`) |
+|---|---|---|
+| **Wildcard grants** | An allow rule that auto-approves a whole tool: `Bash(*)`, a bare tool name, `WebFetch(domain:*)`, a bare `*` | `allow Bash(*)`, bare `allow Write`, `allow WebFetch(domain:*)` → `BROAD_GRANT` (ERROR) |
+| **Dangerous modes, shared** | `defaultMode: bypassPermissions` or the dangerous-mode prompt switched off, in a file teammates inherit | Both set in the shared project file → `DANGEROUS_MODE` (ERROR), with the ≥ v2.1.257 version nuance stated |
+| **Dead rules** | A rule that can never take effect because a higher tier covers it | `allow Bash(aws s3 ls)` under `deny Bash(aws *)` → `SHADOWED_RULE`; the same for a dead ask under a wider deny |
+| **Rules that match nothing** | The tool name is a case-variant of a documented name — matching is exact | `allow bash(npm test)` → `RULE_NEVER_MATCHES` (ERROR): it does nothing, ever |
+| **Filesystem-rooted access** | A Read / Edit / Write allow rooted at the filesystem itself, no project boundary | `allow Read(**)`, `allow Edit(//**)` → `UNBOUNDED_FILE_ACCESS` |
+| **Accretion** | The identical rule twice in the merged chain, or a rule fully covered by a broader one in the same list | `Bash(npm run *)` twice → `DUPLICATE_RULE`; `Bash(git log *)` under `Bash(git *)` → `REDUNDANT_RULE` |
+| **Files that load nothing** | JSON that does not parse, or entries the loader skips | `examples/invalid-settings.json` → `INVALID_JSON` at line 5, column 5 — including its deny rules, every rule in it is inert |
+
+Verdicts: **FAIL** (at least one ERROR), **NO
+ERROR-CLASS GRANTS** (warnings only — rules that can
+never take effect, or grants broader than they look),
+**CLEAN** (no findings). The exit code follows the
+ERROR count: a warnings-only audit exits 0, because
+warnings describe dead weight, not live exposure — and
+a gate that fails on warnings trains people to bypass
+the gate.
+
+[Quick start](#quick-start) · [What it catches](#what-it-catches) ·
+[How it compares](#how-it-compares) · [Reference](#reference)
+
+## How it compares
+
+| | **permission-audit** | Reading the JSON yourself | A JSON linter / schema check |
+|---|---|---|---|
+| Scope | The whole chain, merged, in documented precedence order | One file at a time, precedence held in your head | One file, syntax only |
+| Evaluation order | Documented deny → ask → allow applied to every rule | You simulate it — and intuition gets shadowing backwards | Not modelled |
+| Dead rules | Shadowed, duplicate, and never-matching rules flagged, covering rule cited | Invisible until the day they matter | Not checked — dead rules are valid JSON |
+| Dangerous modes | Flagged with scope-aware severity and the version nuance | One line among hundreds, easy to scroll past | `bypassPermissions` is a valid string; passes |
+| Output | Text report + `--json`, exit codes 1 / 0 / 2 for CI | — | Pass/fail on syntax |
+
+## Honest limits (the short version)
+
+Coverage is a model, not the runtime: real matching
+involves shell parsing and tool-specific behaviour the
+prefix model cannot see, so a rule reported dead is
+provably dead only under the stated model — and
+heuristics say so in their own text. The tool-name list
+is a dated snapshot. Settings keys beyond permissions
+are out of scope. The full limits are
+[below](#honest-limits).
+
+---
+
+## Reference
+
+**Contents:** [What it checks](#what-it-checks) ·
+[Full reports: dangerous](#a-real-run--a-bloated-shared-settings-file) ·
+[chain](#a-chain--three-files-one-merged-verdict) ·
+[clean and broken](#a-clean-file-and-a-broken-one) ·
+[For agents](#for-agents) · [Tests](#tests) ·
+[Honest limits](#honest-limits)
+
+### What it checks
 
 | Rule | Severity | What it catches |
 |---|---|---|
@@ -78,14 +164,14 @@ not matter, precedence sorts them), or a folder (a
 | `REDUNDANT_RULE` | INFO | A rule fully covered by a broader rule in the *same* list (`Bash(git log *)` under `Bash(git *)`). Coverage by a wildcard-everything rule is excluded — that rule is already the BROAD_GRANT finding. |
 | `BYPASS_DISABLED` | INFO | `permissions.disableBypassPermissionsMode: "disable"` is set — bypass mode is fenced off machine-wide. The good kind of finding. |
 
-Every finding names the file, and rule findings name the
-list and the rule text. Exit codes: **1** when any ERROR
-finding exists, **0** otherwise, **2** for input errors
-(missing file, unreadable input, folder with no settings
-files) — always as a clean `{"error": ...}` object in
-`--json` mode, never a traceback.
+Every finding names the file, and rule findings name
+the list and the rule text. Exit codes: **1** when any
+ERROR finding exists, **0** otherwise, **2** for input
+errors (missing file, unreadable input, folder with no
+settings files) — always as a clean `{"error": ...}`
+object in `--json` mode, never a traceback.
 
-## A real run — a bloated shared settings file
+### A real run — a bloated shared settings file
 
 `examples/dangerous/.claude/settings.json` is a
 constructed project file with every fault planted: a
@@ -94,12 +180,11 @@ wildcard-everything grant, a bare `Write`,
 dangerous-mode prompt switched off in a *shared* file,
 a dead allow, a dead ask, an exact duplicate, three
 entries the loader skips, a case-variant tool name, and
-two filesystem-rooted file grants (run from the pack
-root; the output below is verbatim):
+two filesystem-rooted file grants. Verbatim output:
 
 ```
-$ python3 src/permission_audit.py audit examples/dangerous/.claude/settings.json
-permission-audit v0.1.0 — audit · 1 settings file · scope project
+$ permission-audit audit examples/dangerous/.claude/settings.json
+permission-audit v1.0.0 — audit · 1 settings file · scope project
 17 permission rules in the chain · effective defaultMode: bypassPermissions (from examples/dangerous/.claude/settings.json)
 Read-only: it edits nothing and never runs a command. Permission rules are analysed as static text — nothing in the files is evaluated or executed.
 Documented semantics: rules are evaluated deny first, then ask, then allow — specificity does not change the order; permission lists merge across scopes; file precedence is managed > project local > shared project > user.
@@ -186,7 +271,7 @@ allow, so the prompt still fires — no finding. And
 `deny Bash(rm -rf *)` is exactly as live as it looks:
 nothing outranks deny.
 
-## A chain — three files, one merged verdict
+### A chain — three files, one merged verdict
 
 The chain example ships a user file, a shared project
 file, and a project-local file under `examples/chain/`.
@@ -194,8 +279,8 @@ The arguments below are deliberately scrambled —
 precedence, not argument order, sorts the chain:
 
 ```
-$ python3 src/permission_audit.py audit examples/chain/project/.claude/settings.json examples/chain/home/.claude/settings.json examples/chain/project/.claude/settings.local.json --home examples/chain/home
-permission-audit v0.1.0 — audit · 3 settings files · chain order (highest precedence first): local > project > user
+$ permission-audit audit examples/chain/project/.claude/settings.json examples/chain/home/.claude/settings.json examples/chain/project/.claude/settings.local.json --home examples/chain/home
+permission-audit v1.0.0 — audit · 3 settings files · chain order (highest precedence first): local > project > user
 6 permission rules in the chain · effective defaultMode: acceptEdits (from examples/chain/project/.claude/settings.json)
 Read-only: it edits nothing and never runs a command. Permission rules are analysed as static text — nothing in the files is evaluated or executed.
 Documented semantics: rules are evaluated deny first, then ask, then allow — specificity does not change the order; permission lists merge across scopes; file precedence is managed > project local > shared project > user.
@@ -237,11 +322,11 @@ chain instead of one file at a time. (`--home` points
 the user-scope inference at the fixture home; on a real
 machine it defaults to your actual home directory.)
 
-## A clean file, and a broken one
+### A clean file, and a broken one
 
 ```
-$ python3 src/permission_audit.py audit examples/clean/.claude/settings.json
-permission-audit v0.1.0 — audit · 1 settings file · scope project
+$ permission-audit audit examples/clean/.claude/settings.json
+permission-audit v1.0.0 — audit · 1 settings file · scope project
 6 permission rules in the chain · effective defaultMode: default (from examples/clean/.claude/settings.json)
 Read-only: it edits nothing and never runs a command. Permission rules are analysed as static text — nothing in the files is evaluated or executed.
 Documented semantics: rules are evaluated deny first, then ask, then allow — specificity does not change the order; permission lists merge across scopes; file precedence is managed > project local > shared project > user.
@@ -262,8 +347,8 @@ Verdict: CLEAN — no broad grants, dead rules or dangerous modes found by the s
 ```
 
 ```
-$ python3 src/permission_audit.py audit examples/invalid-settings.json
-permission-audit v0.1.0 — audit · 1 settings file · scope unknown
+$ permission-audit audit examples/invalid-settings.json
+permission-audit v1.0.0 — audit · 1 settings file · scope unknown
 0 permission rules in the chain · no defaultMode set in the chain
 Read-only: it edits nothing and never runs a command. Permission rules are analysed as static text — nothing in the files is evaluated or executed.
 Documented semantics: rules are evaluated deny first, then ask, then allow — specificity does not change the order; permission lists merge across scopes; file precedence is managed > project local > shared project > user.
@@ -282,7 +367,7 @@ Verdict: FAIL — 1 error(s): at least one grant is wildcard-broad, a dangerous 
 (exit code 1)
 ```
 
-## For agents
+### For agents
 
 `--json` emits one object: per-file records (scope,
 rule count, default modes, parse status), the full rule
@@ -292,11 +377,14 @@ default mode and which file set it, findings (`rule`,
 `fix`), and summary counts that recount exactly against
 the findings. Input errors — including argument errors —
 are a single JSON object with an `error` key and exit 2.
-SKILL.md states the full rule model, the coverage
-arithmetic, the documented-semantics citations, and
-what the tool deliberately does not claim.
+[SKILL.md](SKILL.md) states the full rule model, the
+coverage arithmetic, the documented-semantics citations,
+and what the tool deliberately does not claim — and
+makes permission-audit itself usable as a skill: point
+your agent at this repo's SKILL.md and it will audit
+settings chains with the documented semantics in hand.
 
-## Tests
+### Tests
 
 ```
 python3 -m unittest discover -s tests
@@ -311,7 +399,7 @@ codes 0/1/2 with no-traceback assertions, and the
 read-only proof — fixture bytes hashed before and after
 CLI runs.
 
-## Honest limits
+### Honest limits
 
 - **Coverage is a model, not the runtime.** Real
   matching involves argument semantics, shell parsing,
@@ -330,11 +418,38 @@ CLI runs.
 - **Settings keys beyond permissions are out of scope**
   (hooks have their own auditor — see hook-doctor).
   `additionalDirectories` widens file access in practice
-  and is deliberately not modelled in v0.1.0.
+  and is deliberately not modelled in v1.0.0.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The rule table
+is the product: every check rests on documented
+semantics (cited, with the date checked) or is labelled
+a heuristic in its own finding text. Found a settings
+file permission-audit misjudges — a dead rule it misses
+or a finding it shouldn't fire? Open an issue with a
+*constructed* fixture; never a real allowlist, which is
+a map of what a machine will run without asking.
+
+## Security
+
+permission-audit is itself a security tool, so its own
+posture is simple: it has no network code, no subprocess
+code, no dependencies, and it never evaluates or
+executes a command it reads. See [SECURITY.md](SECURITY.md)
+for how to report a problem.
 
 ## License
 
-MIT — see LICENSE.
+MIT — see [LICENSE](LICENSE).
+
+## Related
+
+- [skill-vet](https://github.com/jasveerai88/skill-vet)
+  — the other half of pre-flight for agent setups: vets
+  a whole agent skill pack before you install it,
+  blocking only on proven stealing / spying /
+  hidden-sending combinations.
 
 ## Support
 

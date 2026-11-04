@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "permission-audit"
+version = "1.0.0"
+description = "Audit a Claude Code permission allowlist chain — wildcard grants, dangerous modes committed to shared settings, and rules that can never fire because a wider rule wins."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Jasveer Singh" },
+]
+keywords = [
+    "claude-code",
+    "ai-agents",
+    "permissions",
+    "security",
+    "static-analysis",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/jasveerai88/permission-audit"
+Repository = "https://github.com/jasveerai88/permission-audit"
+Issues = "https://github.com/jasveerai88/permission-audit/issues"
+
+[project.scripts]
+permission-audit = "permission_audit:main"
+
+# The implementation is a single standard-library module in
+# src/; it is installed as the top-level module
+# `permission_audit`, and `python3 src/permission_audit.py`
+# keeps working from a checkout.
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["permission_audit"]

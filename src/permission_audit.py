@@ -49,7 +49,7 @@ precedence", code.claude.com/docs, checked 2026-11-04):
     (a Settings Warning), and a settings file that does
     not parse contributes nothing at all.
 
-THE RULES (v0.1.0 — where a check is a heuristic, the
+THE RULES (v1.0.0 — where a check is a heuristic, the
 finding says so):
 
   INVALID_JSON (ERROR) — a settings file in the chain is
@@ -145,7 +145,7 @@ import json
 import sys
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 TOOL = "permission-audit"
 
 # Rule text excerpts in findings are truncated to this many

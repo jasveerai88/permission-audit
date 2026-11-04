@@ -10,8 +10,14 @@ inherits — before trusting what the allowlist permits.
 ## The one command
 
 ```
-python3 src/permission_audit.py audit <settings file OR folder> [more files...] [--home DIR] [--json]
+permission-audit audit <settings file OR folder> [more files...] [--home DIR] [--json]
 ```
+
+(Installed via `pipx install permission-audit` or
+`pip install permission-audit`. From a source checkout,
+the same command is
+`python3 src/permission_audit.py audit <settings file
+OR folder> …`.)
 
 - Accepts one settings file, several files (a chain —
   argument order does not matter), or a folder (a
@@ -190,7 +196,7 @@ produces the same report.
 - **Settings keys beyond permissions are out of scope**
   — hooks, env, model choice. (`additionalDirectories`
   widens file access in practice and is not modelled in
-  v0.1.0; it is named here so the gap is explicit, not
+  v1.0.0; it is named here so the gap is explicit, not
   silent.)
 - **No telemetry, no network, no writes.** Stdlib only;
   the source contains no network calls at all.
