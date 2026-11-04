@@ -1,0 +1,1 @@
+{"permissions":{"allow":["Bash(npm run *)","Bash(git status)","Read(./src/**)"],"ask":["Bash(git push *)"],"defaultMode":"default","deny":["Bash(rm -rf *)","Read(./.env)"]}}
