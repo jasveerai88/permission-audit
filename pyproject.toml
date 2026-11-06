@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Audit a Claude Code permission allowlist chain — wildcard grants, dangerous modes committed to shared settings, and rules that can never fire because a wider rule wins."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [
     { name = "Jasveer Singh" },
 ]
@@ -24,7 +24,6 @@ classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -39,6 +38,7 @@ dependencies = []
 Homepage = "https://github.com/jasveerai88/permission-audit"
 Repository = "https://github.com/jasveerai88/permission-audit"
 Issues = "https://github.com/jasveerai88/permission-audit/issues"
+Changelog = "https://github.com/jasveerai88/permission-audit/blob/main/CHANGELOG.md"
 
 [project.scripts]
 permission-audit = "permission_audit:main"
