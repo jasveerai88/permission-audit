@@ -455,3 +455,5 @@ MIT — see [LICENSE](LICENSE).
 
 If permission-audit saves you a 2 a.m. incident,
 consider [sponsoring](https://github.com/sponsors/jasveerai88).
+Sponsorship funds the time to maintain permission-audit, ship
+fixes, and build the next checks its users ask for.
